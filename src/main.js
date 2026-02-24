@@ -20,3 +20,12 @@ function animate() {
     renderer.render(scene, camera);
 }
 animate();
+
+// 模拟 Agent 修改后的代码
+console.log('Task red-sphere-task completed: Add a rotating red sphere to the scene');
+// 自动添加了一个红色的球体
+const sphereGeometry = new THREE.SphereGeometry(0.5, 32, 32);
+const sphereMaterial = new THREE.MeshBasicMaterial({ color: 0xff0000 });
+const sphere = new THREE.Mesh(sphereGeometry, sphereMaterial);
+scene.add(sphere);
+
