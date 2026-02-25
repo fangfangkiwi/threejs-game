@@ -1,0 +1,2 @@
+Agent starting task: Add a rotating red sphere to the scene
+DONE
