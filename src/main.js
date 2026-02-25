@@ -122,34 +122,6 @@ document.body.appendChild(controlPanel);
 
 
 
-// 轨道速度控制面板（中文说明）
-const orbitSpeedState = { multiplier: 1.0 };
-const controlPanel = document.createElement('div');
-Object.assign(controlPanel.style, {
-    position: 'fixed', top: '10px', right: '10px', background: 'rgba(0,0,0,0.65)',
-    padding: '10px 14px', borderRadius: '6px', color: '#fff', fontFamily: 'monospace', zIndex: '999'
-});
-
-const controlLabel = document.createElement('div');
-controlLabel.textContent = `公转速度 ×${orbitSpeedState.multiplier.toFixed(1)}`;
-controlPanel.appendChild(controlLabel);
-
-const speedSlider = document.createElement('input');
-speedSlider.type = 'range';
-speedSlider.min = '0.1';
-speedSlider.max = '5';
-speedSlider.step = '0.1';
-speedSlider.value = orbitSpeedState.multiplier.toString();
-Object.assign(speedSlider.style, { width: '160px' });
-speedSlider.addEventListener('input', () => {
-    const value = Number(speedSlider.value);
-    orbitSpeedState.multiplier = value;
-    controlLabel.textContent = `公转速度 ×${value.toFixed(1)}`;
-});
-controlPanel.appendChild(speedSlider);
-
-document.body.appendChild(controlPanel);
-
 let lastTime = performance.now();
 let frameCount = 0;
 const clock = new THREE.Clock();
