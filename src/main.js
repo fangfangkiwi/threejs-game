@@ -46,7 +46,7 @@ const material = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
 const cube = new THREE.Mesh(geometry, material);
 scene.add(cube);
 
-camera.position.z = 80;
+camera.position.set(60, 60, 60); camera.lookAt(0, 0, 0);
 
 const sun = new THREE.Mesh(
     new THREE.SphereGeometry(0.5, 32, 32),
