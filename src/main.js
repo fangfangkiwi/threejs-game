@@ -1,5 +1,4 @@
 import * as THREE from 'three';
-import globals from "globals";
 
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x000011);
@@ -27,7 +26,7 @@ const sun = new THREE.Mesh(
 );
 scene.add(sun);
 
-// 星空
+// 星空 (使用 BufferGeometry 优化性能)
 const starGeometry = new THREE.BufferGeometry();
 const starCount = 1200;
 const starPositions = new Float32Array(starCount * 3);
@@ -40,13 +39,16 @@ for (let i = 0; i < starCount; i++) {
     starPositions[i * 3 + 2] = distance * Math.cos(phi);
 }
 starGeometry.setAttribute('position', new THREE.BufferAttribute(starPositions, 3));
-const starField = new THREE.Points(starGeometry, new THREE.PointsMaterial({ color: 0xffffff, size: 0.7, transparent: true, opacity: 0.8 }));
+const starMaterial = new THREE.PointsMaterial({
+    color: 0xffffff,
+    size: 0.7,
+    transparent: true,
+    opacity: 0.8
+});
+const starField = new THREE.Points(starGeometry, starMaterial);
 scene.add(starField);
 
-// 轨道速度状态
-const orbitState = { multiplier: 1.0 };
-
-// 行星数据
+// 行星数据 (celestialBodies)
 const celestialBodies = [];
 const planetData = [
     { name: 'Mercury', radius: 0.3, distance: 8, color: 0x909090, speed: 0.03 },
@@ -60,43 +62,16 @@ const planetData = [
     { name: 'Pluto', radius: 0.2, distance: 48, color: 0xb8b2c7, speed: 0.006 }
 ];
 
+const orbitSpeedState = { multiplier: 1 };
+
 planetData.forEach((data) => {
-    const pivot = new THREE.Object3D();
-    scene.add(pivot);
-    const mesh = new THREE.Mesh(new THREE.SphereGeometry(data.radius, 24, 24), new THREE.MeshStandardMaterial({ color: data.color }));
-    mesh.position.set(data.distance, 0, 0);
-    pivot.add(mesh);
-    if (data.hasRing) {
-        const ringGeo = new THREE.RingGeometry(data.radius + 0.3, data.radius + 1, 32);
-        const ringMesh = new THREE.Mesh(ringGeo, new THREE.MeshBasicMaterial({ color: 0xaaaaaa, side: THREE.DoubleSide, transparent: true, opacity: 0.5 }));
-        ringMesh.rotation.x = Math.PI / 2;
-        mesh.add(ringMesh);
-    }
-    celestialBodies.push({ pivot, speed: data.speed });
+    celestialBodies.push(createCelestialBody(data));
 });
 
-// 速度控制滑块
-const guiContainer = document.createElement('div');
-Object.assign(guiContainer.style, {
-    position: 'fixed', top: '10px', right: '10px', background: 'rgba(0,0,0,0.7)',
-    color: '#fff', padding: '12px', borderRadius: '8px', fontFamily: 'monospace', zIndex: '999'
-});
-guiContainer.innerHTML = '<div>Orbit Speed x<span id=\"speedVal\">1.0</span></div><input type=\"range\" id=\"speedRange\" min=\"0.1\" max=\"10\" step=\"0.1\" value=\"1.0\">';
-document.body.appendChild(guiContainer);
-
-document.getElementById('speedRange').addEventListener('input', (e) => {
-    const val = parseFloat(e.target.value);
-    orbitState.multiplier = val;
-    document.getElementById('speedVal').textContent = val.toFixed(1);
-});
+createOrbitSpeedControl(orbitSpeedState);
 
 // FPS 面板
-const fpsPanel = document.createElement('div');
-Object.assign(fpsPanel.style, {
-    position: 'fixed', top: '10px', left: '10px', background: 'rgba(0,0,0,0.6)',
-    color: '#0f0', padding: '8px', borderRadius: '4px', fontFamily: 'monospace', zIndex: '999'
-});
-document.body.appendChild(fpsPanel);
+const fpsPanel = createFPSPanel();
 
 let lastTime = performance.now();
 let frameCount = 0;
@@ -106,16 +81,90 @@ function animate() {
     requestAnimationFrame(animate);
     const elapsed = clock.getElapsedTime();
     const now = performance.now();
+    
     frameCount++;
     if (now - lastTime >= 500) {
-        fpsPanel.textContent = 'FPS: ' + Math.round((frameCount * 1000) / (now - lastTime));
+        fpsPanel.textContent = `FPS: ${Math.round((frameCount * 1000) / (now - lastTime))}`;
         frameCount = 0;
         lastTime = now;
     }
+
+    // 行星公转（使用全局倍率控制速度）
     celestialBodies.forEach(body => {
-        body.pivot.rotation.y = elapsed * body.speed * orbitState.multiplier;
+        body.pivot.rotation.y = elapsed * body.baseSpeed * orbitSpeedState.multiplier;
     });
+
     starField.rotation.y += 0.0002;
     renderer.render(scene, camera);
 }
+
 animate();
+
+// 工具函数区
+function createCelestialBody(data) {
+    const pivot = new THREE.Object3D();
+    scene.add(pivot);
+
+    const mesh = new THREE.Mesh(
+        new THREE.SphereGeometry(data.radius, 24, 24),
+        new THREE.MeshStandardMaterial({ color: data.color })
+    );
+    mesh.position.set(data.distance, 0, 0);
+    pivot.add(mesh);
+
+    if (data.hasRing) {
+        const ringGeo = new THREE.RingGeometry(data.radius + 0.3, data.radius + 1, 32);
+        const ringMat = new THREE.MeshBasicMaterial({ color: 0xaaaaaa, side: THREE.DoubleSide, transparent: true, opacity: 0.5 });
+        const ringMesh = new THREE.Mesh(ringGeo, ringMat);
+        ringMesh.rotation.x = Math.PI / 2;
+        mesh.add(ringMesh);
+    }
+
+    // 记录基础速度，方便滑动条统一调整
+    return { pivot, baseSpeed: data.speed };
+}
+
+function createFPSPanel() {
+    const panel = document.createElement('div');
+    Object.assign(panel.style, {
+        position: 'fixed', top: '10px', left: '10px', background: 'rgba(0,0,0,0.6)',
+        color: '#0f0', padding: '8px', borderRadius: '4px', fontFamily: 'monospace', zIndex: '999'
+    });
+    document.body.appendChild(panel);
+    return panel;
+}
+
+function createOrbitSpeedControl(state) {
+    const container = document.createElement('div');
+    Object.assign(container.style, {
+        position: 'fixed', top: '10px', right: '10px', background: 'rgba(0,0,0,0.65)',
+        color: '#fff', padding: '10px 14px', borderRadius: '6px', fontFamily: 'monospace', zIndex: '999',
+        display: 'flex', flexDirection: 'column', gap: '6px', minWidth: '180px'
+    });
+
+    const label = document.createElement('div');
+    label.textContent = `轨道速度 ×${state.multiplier.toFixed(1)}`;
+    container.appendChild(label);
+
+    const slider = document.createElement('input');
+    slider.type = 'range';
+    slider.min = '0.1';
+    slider.max = '3';
+    slider.step = '0.1';
+    slider.value = state.multiplier.toString();
+    slider.addEventListener('input', () => {
+        const value = Number(slider.value);
+        state.multiplier = value;
+        label.textContent = `轨道速度 ×${value.toFixed(1)}`;
+    });
+    container.appendChild(slider);
+
+    const hint = document.createElement('div');
+    hint.style.opacity = '0.8';
+    hint.style.fontSize = '0.8em';
+    hint.textContent = '拖动调整所有行星的公转速度';
+    container.appendChild(hint);
+
+    document.body.appendChild(container);
+    return { label, slider };
+}
